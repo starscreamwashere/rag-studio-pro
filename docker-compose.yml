@@ -1,0 +1,152 @@
+# RAG Studio Pro — local development stack.
+# Single command: `docker compose up` (or `make up`).
+# Brings up frontend, backend, Celery worker, and all storage layers.
+
+name: ragstudiopro
+
+services:
+  # ---- Storage layers -------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ragstudio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ragstudio}
+      POSTGRES_DB: ${POSTGRES_DB:-ragstudio}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ragstudio} -d ${POSTGRES_DB:-ragstudio}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [ragnet]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [ragnet]
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    ports:
+      - "${QDRANT_HOST_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_HOST_PORT:-6334}:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks: [ragnet]
+
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-ragstudio123}
+      NEO4J_PLUGINS: '["apoc"]'
+    ports:
+      - "${NEO4J_HTTP_HOST_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_HOST_PORT:-7687}:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [ragnet]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ragstudio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ragstudio123}
+    ports:
+      - "${MINIO_HOST_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [ragnet]
+
+  # ---- Application services --------------------------------------------------
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      # Override host-based URLs from .env with in-network service names.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ragstudio}:${POSTGRES_PASSWORD:-ragstudio}@postgres:5432/${POSTGRES_DB:-ragstudio}
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: http://qdrant:6333
+      NEO4J_URI: bolt://neo4j:7687
+      MINIO_ENDPOINT: http://minio:9000
+    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "${BACKEND_HOST_PORT:-8000}:8000"
+    volumes:
+      - ./apps/backend:/app
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      neo4j: { condition: service_healthy }
+      qdrant: { condition: service_started }
+      minio: { condition: service_started }
+    networks: [ragnet]
+
+  celery_worker:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    command: ["uv", "run", "celery", "-A", "app.worker.celery_app.celery_app", "worker", "--loglevel=info"]
+    volumes:
+      - ./apps/backend:/app
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [ragnet]
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    command: ["pnpm", "dev"]
+    ports:
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      backend: { condition: service_started }
+    networks: [ragnet]
+
+networks:
+  ragnet:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+  neo4j_data:
+  neo4j_logs:
+  minio_data:

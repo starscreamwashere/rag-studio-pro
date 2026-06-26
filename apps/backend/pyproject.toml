@@ -1,0 +1,31 @@
+[project]
+name = "rag-studio-pro-backend"
+version = "0.1.0"
+description = "RAG Studio Pro — FastAPI backend"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "celery>=5.4.0",
+    "redis>=5.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.4",
+    "httpx>=0.27.0",
+    "pytest>=8.3.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4"]
+
+[tool.uv]
+package = false
