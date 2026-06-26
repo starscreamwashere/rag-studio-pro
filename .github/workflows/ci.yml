@@ -33,17 +33,22 @@ jobs:
         working-directory: apps/frontend
     steps:
       - uses: actions/checkout@v4
+      # pnpm version comes from the "packageManager" field in package.json,
+      # so it must not also be set here (avoids ERR_PNPM_BAD_PM_VERSION).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: apps/frontend/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm build
+        env:
+          # Publishable key is non-secret (it ships in the browser bundle).
+          # A format-valid placeholder lets `next build` prerender pages
+          # without coupling CI to a real Clerk instance.
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2ktYnVpbGQtcGxhY2Vob2xkZXIuY2xlcmsuYWNjb3VudHMuZGV2JA==
 
   compose:
     name: docker compose config
