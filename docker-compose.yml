@@ -95,7 +95,13 @@ services:
       QDRANT_URL: http://qdrant:6333
       NEO4J_URI: bolt://neo4j:7687
       MINIO_ENDPOINT: http://minio:9000
-    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+      # Backend derives the Clerk JWKS/issuer from the publishable key.
+      CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+    command:
+      - "sh"
+      - "-c"
+      - "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "${BACKEND_HOST_PORT:-8000}:8000"
     volumes:
@@ -128,6 +134,8 @@ services:
       dockerfile: Dockerfile
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
     command: ["pnpm", "dev"]
     ports:
       - "${FRONTEND_HOST_PORT:-3000}:3000"

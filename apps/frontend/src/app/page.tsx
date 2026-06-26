@@ -1,40 +1,75 @@
-import { HealthBadge } from "@/components/health-badge";
+import Link from "next/link";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
 
-export default function Home() {
+const FEATURES = [
+  ["Multi-modal ingestion", "PDFs, docs, data, and connectors into one knowledge base."],
+  ["Hybrid retrieval", "Vector + graph retrieval with reranking and score fusion."],
+  ["Experimentation studio", "Tune chunking, embeddings, and retrieval in real time."],
+  ["Agentic reasoning", "An agent that selects tools and explains every answer."],
+];
+
+export default function Landing() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-8 px-6 py-16">
-      <div className="flex flex-col gap-3">
-        <span className="font-mono text-sm text-muted-foreground">Phase 0 · Foundation</span>
-        <h1 className="text-4xl font-semibold tracking-tight">RAG Studio Pro</h1>
-        <p className="text-lg text-muted-foreground">
-          Advanced Multi-Modal Intelligent RAG Platform with Hybrid Retrieval and Agentic
-          Reasoning.
-        </p>
-      </div>
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col px-6">
+      <header className="flex items-center justify-between py-6">
+        <span className="font-semibold tracking-tight">RAG Studio Pro</span>
+        <nav className="flex items-center gap-2">
+          <SignedOut>
+            <Link href="/sign-in">
+              <Button variant="ghost" size="sm">
+                Login
+              </Button>
+            </Link>
+            <Link href="/sign-up">
+              <Button size="sm">Sign Up</Button>
+            </Link>
+          </SignedOut>
+          <SignedIn>
+            <Link href="/dashboard">
+              <Button size="sm">Open dashboard</Button>
+            </Link>
+          </SignedIn>
+        </nav>
+      </header>
 
-      <div
-        className="flex flex-col gap-4 border bg-card p-6"
-        style={{ borderRadius: "var(--radius-card)" }}
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">Development stack</span>
-          <HealthBadge />
+      <section className="flex flex-1 flex-col justify-center gap-8 py-16">
+        <div className="flex max-w-2xl flex-col gap-4">
+          <h1 className="text-5xl font-semibold leading-tight tracking-tight">
+            The intelligent RAG platform for production knowledge.
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Advanced Multi-Modal Intelligent RAG Platform with Hybrid Retrieval and Agentic
+            Reasoning.
+          </p>
+          <div className="flex gap-3 pt-2">
+            <SignedOut>
+              <Link href="/sign-up">
+                <Button size="lg">Get started</Button>
+              </Link>
+              <Link href="/sign-in">
+                <Button size="lg" variant="outline">
+                  Login
+                </Button>
+              </Link>
+            </SignedOut>
+            <SignedIn>
+              <Link href="/dashboard">
+                <Button size="lg">Go to dashboard</Button>
+              </Link>
+            </SignedIn>
+          </div>
         </div>
-        <ul className="grid grid-cols-2 gap-2 font-mono text-sm text-muted-foreground">
-          <li>Frontend · Next.js :3000</li>
-          <li>Backend · FastAPI :8000</li>
-          <li>PostgreSQL :5432</li>
-          <li>Redis :6379</li>
-          <li>Qdrant :6333</li>
-          <li>Neo4j :7474</li>
-          <li>MinIO :9001</li>
-          <li>Celery worker</li>
-        </ul>
-      </div>
 
-      <p className="text-sm text-muted-foreground">
-        The foundation is in place. Next: Phase 1 — Core Backend, Authentication &amp; Database.
-      </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {FEATURES.map(([title, desc]) => (
+            <div key={title} className="rounded-[var(--radius-card)] border bg-card p-5">
+              <h3 className="font-medium">{title}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
