@@ -54,6 +54,36 @@ export interface Document {
   uploaded_at: string;
 }
 
+export interface ChatCitation {
+  index: number;
+  document_id: string;
+  file_name: string;
+  score: number;
+  snippet: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "system" | "user" | "assistant" | "tool";
+  content: string;
+  citations: ChatCitation[] | null;
+  confidence_score: number | null;
+  created_at: string;
+}
+
+export interface ChatSession {
+  id: string;
+  knowledge_base_id: string | null;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+}
+
+export interface ChatSessionDetail extends ChatSession {
+  messages: ChatMessage[];
+}
+
 export interface IngestionJob {
   id: string;
   document_id: string;

@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, useApi } from "@/lib/api";
 import type {
+  ChatSession,
+  ChatSessionDetail,
   Document,
   IngestionJob,
   KnowledgeBase,
@@ -138,6 +140,47 @@ export function useUploadDocument(kbId: string) {
       qc.invalidateQueries({ queryKey: ["knowledge-bases", kbId, "documents"] });
       qc.invalidateQueries({ queryKey: ["knowledge-bases"] });
     },
+  });
+}
+
+// ---- Chat -------------------------------------------------------------------
+
+export function useChatSessions() {
+  const { request } = useApi();
+  return useQuery({
+    queryKey: ["chat-sessions"],
+    queryFn: () => request<ChatSession[]>("/chat/sessions"),
+  });
+}
+
+export function useChatSession(id: string | null) {
+  const { request } = useApi();
+  return useQuery({
+    queryKey: ["chat-session", id],
+    queryFn: () => request<ChatSessionDetail>(`/chat/sessions/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useCreateChatSession() {
+  const { request } = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { knowledge_base_id: string; title?: string }) =>
+      request<ChatSession>("/chat/sessions", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-sessions"] }),
+  });
+}
+
+export function useDeleteChatSession() {
+  const { request } = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => request<void>(`/chat/sessions/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-sessions"] }),
   });
 }
 

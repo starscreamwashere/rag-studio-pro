@@ -6,11 +6,17 @@ active provider; each provider is a thin httpx call exposing the same
 in the same way.
 """
 
+import json
+from collections.abc import AsyncIterator
+
 import httpx
 
 from app.core.config import settings
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+GEMINI_STREAM_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent"
+)
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
@@ -95,3 +101,82 @@ async def generate(prompt: str, system: str | None = None) -> dict:
     if provider is None:
         raise LLMNotConfigured(f"Unknown LLM provider: {settings.llm_provider}")
     return await provider(prompt, system)
+
+
+async def _groq_stream(prompt: str, system: str | None) -> AsyncIterator[str]:
+    if not settings.groq_api_key:
+        raise LLMNotConfigured("GROQ_API_KEY is not set.")
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+    payload = {"model": settings.groq_model, "messages": messages, "stream": True}
+    headers = {"Authorization": f"Bearer {settings.groq_api_key}"}
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream("POST", GROQ_URL, headers=headers, json=payload) as resp:
+                if resp.status_code >= 400:
+                    await resp.aread()
+                    raise LLMError(f"groq returned HTTP {resp.status_code}.")
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[len("data:") :].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        obj = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    delta = (obj.get("choices") or [{}])[0].get("delta", {}).get("content")
+                    if delta:
+                        yield delta
+    except httpx.HTTPError as exc:
+        raise LLMError(f"groq stream failed: {exc}") from exc
+
+
+async def _gemini_stream(prompt: str, system: str | None) -> AsyncIterator[str]:
+    if not settings.gemini_api_key:
+        raise LLMNotConfigured("GEMINI_API_KEY is not set.")
+    body: dict = {"contents": [{"role": "user", "parts": [{"text": prompt}]}]}
+    if system:
+        body["systemInstruction"] = {"parts": [{"text": system}]}
+    url = GEMINI_STREAM_URL.format(model=settings.gemini_model)
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST", url, params={"key": settings.gemini_api_key, "alt": "sse"}, json=body
+            ) as resp:
+                if resp.status_code >= 400:
+                    await resp.aread()
+                    code = resp.status_code
+                    hint = " (rate limit / quota exceeded)" if code == 429 else ""
+                    raise LLMError(f"gemini returned HTTP {code}{hint}.")
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[len("data:") :].strip()
+                    if not data:
+                        continue
+                    try:
+                        obj = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    for cand in obj.get("candidates", []):
+                        for part in cand.get("content", {}).get("parts", []):
+                            if part.get("text"):
+                                yield part["text"]
+    except httpx.HTTPError as exc:
+        raise LLMError(f"gemini stream failed: {exc}") from exc
+
+
+_STREAMERS = {"gemini": _gemini_stream, "groq": _groq_stream}
+
+
+async def stream(prompt: str, system: str | None = None) -> AsyncIterator[str]:
+    """Stream answer tokens from the configured provider."""
+    streamer = _STREAMERS.get(settings.llm_provider)
+    if streamer is None:
+        raise LLMNotConfigured(f"Unknown LLM provider: {settings.llm_provider}")
+    async for token in streamer(prompt, system):
+        yield token

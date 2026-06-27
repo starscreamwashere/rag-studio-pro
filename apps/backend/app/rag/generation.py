@@ -15,6 +15,39 @@ def build_prompt(query: str, chunks: list[RetrievedChunk]) -> str:
     return f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer (with inline [n] citations):"
 
 
+def build_chat_prompt(
+    query: str, chunks: list[RetrievedChunk], history: list[tuple[str, str]] | None = None
+) -> str:
+    """Prompt with retrieved context plus recent conversation turns."""
+    context = "\n\n".join(f"[{i + 1}] {c.text}" for i, c in enumerate(chunks))
+    convo = ""
+    if history:
+        turns = "\n".join(f"{role}: {content}" for role, content in history)
+        convo = f"Conversation so far:\n{turns}\n\n"
+    return f"{convo}Context:\n{context}\n\nQuestion: {query}\n\nAnswer (with inline [n] citations):"
+
+
+def build_citations(chunks: list[RetrievedChunk], names: dict[str, str]) -> list[dict]:
+    """Citation payload for source cards (stored on the assistant message)."""
+    return [
+        {
+            "index": i + 1,
+            "document_id": c.document_id,
+            "file_name": names.get(c.document_id, "unknown"),
+            "score": round(c.score, 4),
+            "snippet": c.text[:240],
+        }
+        for i, c in enumerate(chunks)
+    ]
+
+
+def confidence(chunks: list[RetrievedChunk]) -> float | None:
+    """Heuristic confidence: mean of retrieval similarity scores."""
+    if not chunks:
+        return None
+    return round(sum(c.score for c in chunks) / len(chunks), 4)
+
+
 async def generate_answer(query: str, chunks: list[RetrievedChunk]) -> dict:
     """Return {'text', 'usage'}. Raises llm.LLMNotConfigured if no LLM key is set."""
     if not chunks:
