@@ -6,6 +6,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import CurrentUser, DbSession
+from app.core import ratelimit
 from app.integrations import llm
 from app.integrations.llm import LLMError, LLMNotConfigured
 from app.rag import generation, retrieval
@@ -26,6 +27,7 @@ async def query_knowledge_base(
             status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge base not found"
         )
 
+    await ratelimit.enforce(user)
     start = time.monotonic()
     chunks = await retrieval.retrieve(kb, payload.query, payload.top_k)
 

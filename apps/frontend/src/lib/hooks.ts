@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, useApi } from "@/lib/api";
 import type {
   AgentResponse,
+  AuditLog,
   ChatSession,
   ChatSessionDetail,
   Document,
@@ -16,6 +17,7 @@ import type {
   KnowledgeBase,
   Organization,
   RetrievalMode,
+  UsageSummary,
   User,
   Workspace,
 } from "@/lib/types";
@@ -123,6 +125,26 @@ export function useCreateKnowledgeBase() {
         body: JSON.stringify(input),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["knowledge-bases"] }),
+  });
+}
+
+// ---- Admin (Phase 8) --------------------------------------------------------
+
+export function useAuditLogs(enabled: boolean) {
+  const { request } = useApi();
+  return useQuery({
+    queryKey: ["admin", "audit-logs"],
+    queryFn: () => request<AuditLog[]>("/admin/audit-logs"),
+    enabled,
+  });
+}
+
+export function useUsage(enabled: boolean) {
+  const { request } = useApi();
+  return useQuery({
+    queryKey: ["admin", "usage"],
+    queryFn: () => request<UsageSummary>("/admin/usage"),
+    enabled,
   });
 }
 

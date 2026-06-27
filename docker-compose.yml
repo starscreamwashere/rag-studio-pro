@@ -149,6 +149,30 @@ services:
       backend: { condition: service_started }
     networks: [ragnet]
 
+  # --- Observability (Phase 8) ------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+    networks: [ragnet]
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_HOST_PORT:-3001}:3000"
+    depends_on: [prometheus]
+    networks: [ragnet]
+
 networks:
   ragnet:
     driver: bridge
@@ -161,3 +185,5 @@ volumes:
   fastembed_cache:
   neo4j_logs:
   minio_data:
+  prometheus_data:
+  grafana_data:

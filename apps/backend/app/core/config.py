@@ -72,6 +72,13 @@ class Settings(BaseSettings):
     # Agent (Phase 7)
     web_search_max_results: int = 5
 
+    # Production hardening (Phase 8)
+    llm_fallback_provider: str = ""  # e.g. "gemini" — tried if the primary fails
+    llm_max_retries: int = 2
+    rate_limit_per_minute: int = 30  # per-user, on expensive LLM endpoints
+    org_daily_quota: int = 1000  # per-organization/day on expensive endpoints
+    langsmith_project: str = "rag-studio-pro"
+
     # LLM generation — active provider + per-provider models
     llm_provider: str = "gemini"  # gemini | groq (override via LLM_PROVIDER)
     gemini_model: str = "gemini-2.0-flash"

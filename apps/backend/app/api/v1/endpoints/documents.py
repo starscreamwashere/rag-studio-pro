@@ -14,7 +14,7 @@ from app.ingestion.parsers import SUPPORTED_TYPES, normalize_type
 from app.integrations import storage
 from app.models.user import User
 from app.schemas.knowledge_base import DocumentRead, IngestionJobRead
-from app.services import document_service
+from app.services import audit_service, document_service
 from app.services import knowledge_base_service as kb_service
 from app.worker.tasks.ingestion import ingest_document
 
@@ -85,6 +85,15 @@ async def upload_document(
     )
     # Hand off to the Celery worker for parsing.
     ingest_document.delay(str(doc.id), str(job.id))
+    await audit_service.log(
+        db,
+        organization_id=user.organization_id,
+        actor_id=user.id,
+        action="document.uploaded",
+        resource_type="document",
+        resource_id=str(doc.id),
+        metadata={"file_name": doc.file_name, "knowledge_base_id": str(kb_id)},
+    )
     return doc
 
 

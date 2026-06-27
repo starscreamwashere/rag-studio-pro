@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import CurrentUser, DbSession
+from app.core import ratelimit
 from app.db.session import SessionLocal
 from app.integrations import llm
 from app.integrations.llm import LLMError, LLMNotConfigured
@@ -113,6 +114,7 @@ async def send_message(
             detail="This chat's knowledge base is no longer available.",
         )
 
+    await ratelimit.enforce(user)
     # Prior turns (before this question), then persist the user turn.
     history = await chat_service.recent_history(db, session_id)
     await chat_service.add_message(db, session_id=session_id, role="user", content=payload.content)
