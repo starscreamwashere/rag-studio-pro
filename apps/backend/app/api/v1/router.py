@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.chat import router as chat_router
 from app.api.v1.endpoints.documents import router as documents_router
+from app.api.v1.endpoints.graph import router as graph_router
 from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.endpoints.knowledge_bases import router as knowledge_bases_router
 from app.api.v1.endpoints.organizations import router as organizations_router
@@ -23,4 +24,5 @@ api_router.include_router(workspaces_router)
 api_router.include_router(knowledge_bases_router)
 api_router.include_router(documents_router)
 api_router.include_router(query_router)
+api_router.include_router(graph_router)
 api_router.include_router(chat_router)

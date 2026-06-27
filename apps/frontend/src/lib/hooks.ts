@@ -6,6 +6,9 @@ import type {
   ChatSession,
   ChatSessionDetail,
   Document,
+  GraphEntity,
+  GraphStats,
+  GraphTriple,
   IngestionJob,
   KnowledgeBase,
   Organization,
@@ -140,6 +143,35 @@ export function useUploadDocument(kbId: string) {
       qc.invalidateQueries({ queryKey: ["knowledge-bases", kbId, "documents"] });
       qc.invalidateQueries({ queryKey: ["knowledge-bases"] });
     },
+  });
+}
+
+// ---- Graph (Phase 5) --------------------------------------------------------
+
+export function useGraphEntities(kbId: string, enabled: boolean) {
+  const { request } = useApi();
+  return useQuery({
+    queryKey: ["knowledge-bases", kbId, "graph", "entities"],
+    queryFn: () => request<GraphEntity[]>(`/knowledge-bases/${kbId}/graph/entities`),
+    enabled,
+  });
+}
+
+export function useGraphRelationships(kbId: string, enabled: boolean) {
+  const { request } = useApi();
+  return useQuery({
+    queryKey: ["knowledge-bases", kbId, "graph", "relationships"],
+    queryFn: () => request<GraphTriple[]>(`/knowledge-bases/${kbId}/graph/relationships`),
+    enabled,
+  });
+}
+
+export function useGraphStats(kbId: string, enabled: boolean) {
+  const { request } = useApi();
+  return useQuery({
+    queryKey: ["knowledge-bases", kbId, "graph", "stats"],
+    queryFn: () => request<GraphStats>(`/knowledge-bases/${kbId}/graph/stats`),
+    enabled,
   });
 }
 

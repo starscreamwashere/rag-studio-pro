@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { DocumentList } from "@/components/kb/document-list";
 import { DocumentUpload } from "@/components/kb/document-upload";
+import { EntitiesView, RelationsView } from "@/components/kb/graph-view";
 import { StatusBadge } from "@/components/kb/status-badge";
 import { useDocuments, useKnowledgeBase } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,8 @@ const TABS = [
   { key: "settings", label: "Settings", phase: 8 },
 ] as const;
 
+type TabKey = (typeof TABS)[number]["key"];
+
 export default function KnowledgeBaseDetailPage({
   params,
 }: {
@@ -24,9 +27,7 @@ export default function KnowledgeBaseDetailPage({
   const { id } = use(params);
   const { data: kb } = useKnowledgeBase(id);
   const { data: documents } = useDocuments(id);
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("documents");
-
-  const active = TABS.find((t) => t.key === tab)!;
+  const [tab, setTab] = useState<TabKey>("documents");
 
   return (
     <>
@@ -42,9 +43,7 @@ export default function KnowledgeBaseDetailPage({
           <h1 className="text-2xl font-semibold tracking-tight">{kb?.name ?? "…"}</h1>
           {kb && <StatusBadge status={kb.status} />}
         </div>
-        {kb?.description && (
-          <p className="mt-1 text-sm text-muted-foreground">{kb.description}</p>
-        )}
+        {kb?.description && <p className="mt-1 text-sm text-muted-foreground">{kb.description}</p>}
 
         <div className="mt-5 flex gap-1">
           {TABS.map((t) => (
@@ -65,18 +64,21 @@ export default function KnowledgeBaseDetailPage({
       </div>
 
       <div className="px-8 py-6">
-        {tab === "documents" ? (
+        {tab === "documents" && (
           <div className="flex flex-col gap-6">
             <DocumentUpload kbId={id} />
             <DocumentList documents={documents ?? []} />
           </div>
-        ) : (
+        )}
+        {tab === "entities" && <EntitiesView kbId={id} />}
+        {tab === "relations" && <RelationsView kbId={id} />}
+        {tab === "settings" && (
           <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
             <span className="rounded-full bg-surface-2 px-3 py-1 font-mono text-xs text-muted-foreground">
-              Ships in Phase {active.phase}
+              Ships in Phase 8
             </span>
             <p className="text-sm text-muted-foreground">
-              The {active.label} view is part of a later phase.
+              Collection-level settings are part of a later phase.
             </p>
           </div>
         )}

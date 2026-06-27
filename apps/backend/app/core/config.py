@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 5
     fastembed_cache_dir: str = "/app/.fastembed_cache"
 
+    # Graph RAG (Phase 5)
+    graph_extraction_enabled: bool = True
+    graph_max_chunks: int = 40  # cap per-document extraction LLM calls
+    graph_retrieval_hops: int = 3  # multi-hop traversal depth for graph retrieval
+
     # LLM generation — active provider + per-provider models
     llm_provider: str = "gemini"  # gemini | groq (override via LLM_PROVIDER)
     gemini_model: str = "gemini-2.0-flash"

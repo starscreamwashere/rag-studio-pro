@@ -54,6 +54,24 @@ export interface Document {
   uploaded_at: string;
 }
 
+export interface GraphEntity {
+  id: string | null;
+  name: string;
+  type: string | null;
+  degree: number;
+}
+
+export interface GraphTriple {
+  source: string;
+  relation: string;
+  target: string;
+}
+
+export interface GraphStats {
+  entities: number;
+  relationships: number;
+}
+
 export interface ChatCitation {
   index: number;
   document_id: string;

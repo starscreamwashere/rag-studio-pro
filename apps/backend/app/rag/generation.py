@@ -48,6 +48,20 @@ def confidence(chunks: list[RetrievedChunk]) -> float | None:
     return round(sum(c.score for c in chunks) / len(chunks), 4)
 
 
+GRAPH_SYSTEM = (
+    "You are a knowledge assistant. Answer the question using ONLY the provided knowledge-graph "
+    "relationships. Reason over multi-hop connections (e.g. chains, ownership, dependencies). "
+    "If the relationships don't contain the answer, say you don't have enough information."
+)
+
+
+def build_graph_prompt(query: str, triples: list[dict]) -> str:
+    facts = "\n".join(
+        f"- {t['source']} {t['relation'].replace('_', ' ').lower()} {t['target']}" for t in triples
+    )
+    return f"Knowledge graph relationships:\n{facts}\n\nQuestion: {query}\n\nAnswer:"
+
+
 async def generate_answer(query: str, chunks: list[RetrievedChunk]) -> dict:
     """Return {'text', 'usage'}. Raises llm.LLMNotConfigured if no LLM key is set."""
     if not chunks:
