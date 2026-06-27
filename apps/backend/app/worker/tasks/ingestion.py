@@ -15,7 +15,7 @@ from app.models.chunk import Chunk
 from app.models.document import Document
 from app.models.ingestion_job import IngestionJob
 from app.models.knowledge_base import KnowledgeBase
-from app.rag import embeddings, vector_store
+from app.rag import embeddings, graph_extraction, graph_store, vector_store
 from app.rag.chunking import chunk_text, count_tokens
 from app.worker.celery_app import celery_app
 
@@ -73,7 +73,7 @@ def ingest_document(document_id: str, job_id: str) -> str:
 
             # Index in Qdrant.
             job.current_step = "indexing"
-            job.progress_percent = 90
+            job.progress_percent = 75
             db.commit()
             collection = vector_store.collection_name(kb.id)
             vector_store.ensure_collection(
@@ -98,6 +98,29 @@ def ingest_document(document_id: str, job_id: str) -> str:
                 )
             if points:
                 vector_store.upsert_points(collection, points)
+
+            # Graph extraction (best-effort: never fail ingestion on extraction errors).
+            if settings.graph_extraction_enabled:
+                job.current_step = "graph_extraction"
+                job.progress_percent = 90
+                db.commit()
+                graph_store.ensure_schema()
+                for chunk, text in chunk_rows[: settings.graph_max_chunks]:
+                    try:
+                        extracted = graph_extraction.extract_graph(text)
+                    except Exception:  # noqa: BLE001 — graph is optional, keep ingesting
+                        continue
+                    if not extracted["entities"] and not extracted["relationships"]:
+                        continue
+                    name_to_id = graph_store.upsert_graph(
+                        str(kb.id),
+                        str(kb.workspace_id),
+                        extracted["entities"],
+                        extracted["relationships"],
+                    )
+                    if name_to_id:
+                        chunk.graph_node_ids = list(name_to_id.values())
+                db.commit()
 
             job.status = "completed"
             job.current_step = "indexed"

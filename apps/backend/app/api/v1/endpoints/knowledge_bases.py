@@ -12,7 +12,7 @@ from app.core.permissions import CREATE_KNOWLEDGE_BASE
 from app.integrations import storage
 from app.models.knowledge_base import KnowledgeBase
 from app.models.user import User
-from app.rag import vector_store
+from app.rag import graph_store, vector_store
 from app.schemas.knowledge_base import KnowledgeBaseCreate, KnowledgeBaseRead
 from app.services import knowledge_base_service as kb_service
 
@@ -74,4 +74,5 @@ async def delete_knowledge_base(
     # (which cascades documents/jobs/chunks).
     await run_in_threadpool(storage.delete_prefix, settings.minio_documents_bucket, f"{kb_id}/")
     await run_in_threadpool(vector_store.delete_collection, vector_store.collection_name(kb_id))
+    await run_in_threadpool(graph_store.delete_kb_graph, str(kb_id))
     await kb_service.delete(db, kb)

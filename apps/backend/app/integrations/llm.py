@@ -180,3 +180,49 @@ async def stream(prompt: str, system: str | None = None) -> AsyncIterator[str]:
         raise LLMNotConfigured(f"Unknown LLM provider: {settings.llm_provider}")
     async for token in streamer(prompt, system):
         yield token
+
+
+def _post_sync(url: str, *, params=None, headers=None, json=None) -> dict:
+    try:
+        with httpx.Client(timeout=60) as client:
+            resp = client.post(url, params=params, headers=headers, json=json)
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPStatusError as exc:
+        code = exc.response.status_code
+        hint = " (rate limit / quota exceeded)" if code == 429 else ""
+        raise LLMError(f"{settings.llm_provider} returned HTTP {code}{hint}.") from exc
+    except httpx.HTTPError as exc:
+        raise LLMError(f"{settings.llm_provider} request failed: {exc}") from exc
+
+
+def generate_sync(prompt: str, system: str | None = None) -> str:
+    """Synchronous generation for the Celery worker (graph extraction)."""
+    provider = settings.llm_provider
+    if provider == "groq":
+        if not settings.groq_api_key:
+            raise LLMNotConfigured("GROQ_API_KEY is not set.")
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        data = _post_sync(
+            GROQ_URL,
+            headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+            json={"model": settings.groq_model, "messages": messages},
+        )
+        return data["choices"][0]["message"]["content"]
+    if provider == "gemini":
+        if not settings.gemini_api_key:
+            raise LLMNotConfigured("GEMINI_API_KEY is not set.")
+        body: dict = {"contents": [{"role": "user", "parts": [{"text": prompt}]}]}
+        if system:
+            body["systemInstruction"] = {"parts": [{"text": system}]}
+        data = _post_sync(
+            GEMINI_URL.format(model=settings.gemini_model),
+            params={"key": settings.gemini_api_key},
+            json=body,
+        )
+        parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+        return "".join(p.get("text", "") for p in parts)
+    raise LLMNotConfigured(f"Unknown LLM provider: {provider}")
