@@ -12,6 +12,8 @@ class KnowledgeBaseCreate(BaseModel):
     workspace_id: uuid.UUID
     name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=2000)
+    embedding_model: str = Field(default="minilm", pattern="^(minilm|bge|gemini)$")
+    chunking_strategy: str = Field(default="recursive", pattern="^(recursive|semantic)$")
 
 
 class KnowledgeBaseRead(ORMModel):
@@ -21,6 +23,7 @@ class KnowledgeBaseRead(ORMModel):
     description: str | None
     embedding_model: str
     retrieval_default: str
+    chunking_strategy: str
     status: str
     created_at: datetime
     document_count: int = 0

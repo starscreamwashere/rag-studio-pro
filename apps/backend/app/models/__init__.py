@@ -7,6 +7,7 @@ Alembic autogenerate and ``create_all`` see every table.
 from app.models.chat_session import ChatSession
 from app.models.chunk import Chunk
 from app.models.document import Document
+from app.models.evaluation_run import EvaluationRun
 from app.models.ingestion_job import IngestionJob
 from app.models.knowledge_base import KnowledgeBase
 from app.models.message import Message
@@ -26,4 +27,5 @@ __all__ = [
     "Chunk",
     "ChatSession",
     "Message",
+    "EvaluationRun",
 ]

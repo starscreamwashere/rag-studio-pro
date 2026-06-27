@@ -39,6 +39,7 @@ export interface KnowledgeBase {
   description: string | null;
   embedding_model: string;
   retrieval_default: string;
+  chunking_strategy: string;
   status: "active" | "syncing" | "failed" | "archived";
   created_at: string;
   document_count: number;
@@ -52,6 +53,60 @@ export interface Document {
   file_size: number;
   ingestion_status: IngestionStatus;
   uploaded_at: string;
+}
+
+export type RetrievalMode = "vector" | "graph" | "hybrid";
+
+export interface StudioChunk {
+  chunk_id: string;
+  document_id: string;
+  file_name: string;
+  chunk_index: number;
+  text: string;
+  score: number;
+  vector_score: number | null;
+  lexical_score: number | null;
+  fused_score: number | null;
+}
+
+export interface StudioTriple {
+  source: string;
+  relation: string;
+  target: string;
+}
+
+export interface ExperimentMetrics {
+  latency_ms: number;
+  token_usage: number | null;
+  score: number | null;
+  retrieved_count: number;
+  relationship_count: number;
+}
+
+export interface ExperimentResponse {
+  run_id: string;
+  retrieval_mode: RetrievalMode;
+  answer: string;
+  vector_results: StudioChunk[];
+  graph_results: StudioTriple[];
+  metrics: ExperimentMetrics;
+  model: string;
+  llm_configured: boolean;
+  generation_error: string | null;
+}
+
+export interface EvaluationRun {
+  id: string;
+  knowledge_base_id: string | null;
+  retrieval_mode: RetrievalMode;
+  embedding_model: string;
+  reranker: string | null;
+  chunk_size: number | null;
+  top_k: number;
+  latency_ms: number;
+  token_usage: number | null;
+  score: number | null;
+  created_at: string;
 }
 
 export interface GraphEntity {

@@ -59,9 +59,16 @@ async def create(
     name: str,
     description: str | None,
     created_by: uuid.UUID,
+    embedding_model: str = "minilm",
+    chunking_strategy: str = "recursive",
 ) -> KnowledgeBase:
     kb = KnowledgeBase(
-        workspace_id=workspace_id, name=name, description=description, created_by=created_by
+        workspace_id=workspace_id,
+        name=name,
+        description=description,
+        created_by=created_by,
+        embedding_model=embedding_model,
+        chunking_strategy=chunking_strategy,
     )
     db.add(kb)
     await db.commit()

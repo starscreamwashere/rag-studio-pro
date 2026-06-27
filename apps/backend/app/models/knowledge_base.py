@@ -29,6 +29,8 @@ class KnowledgeBase(UUIDPrimaryKey, TimestampMixin, Base):
     # Retrieval config — consumed in later phases; defaults are fine for now.
     embedding_model: Mapped[str] = mapped_column(String(100), nullable=False, default="minilm")
     retrieval_default: Mapped[str] = mapped_column(String(50), nullable=False, default="vector")
+    # recursive | semantic (Phase 6) — applied at ingestion time
+    chunking_strategy: Mapped[str] = mapped_column(String(20), nullable=False, default="recursive")
     # active | syncing | failed | archived
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")
     created_by: Mapped[uuid.UUID | None] = mapped_column(
