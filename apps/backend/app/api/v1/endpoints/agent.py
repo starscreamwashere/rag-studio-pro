@@ -11,9 +11,10 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.agent.graph import run_agent
 from app.api.deps import CurrentUser, DbSession
+from app.core import ratelimit
 from app.integrations import llm
 from app.schemas.agent import AgentMessageRequest, AgentResponse, AgentSource
-from app.services import chat_service, document_service
+from app.services import audit_service, chat_service, document_service
 from app.services import knowledge_base_service as kb_service
 
 router = APIRouter(prefix="/chat", tags=["agent"])
@@ -35,6 +36,7 @@ async def agent_message(
     if kb is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No knowledge base.")
 
+    await ratelimit.enforce(user)
     history = await chat_service.recent_history(db, session_id)
     await chat_service.add_message(db, session_id=session_id, role="user", content=payload.content)
     if not history:
@@ -69,6 +71,17 @@ async def agent_message(
         content=state.get("answer", ""),
         citations=[s.model_dump() for s in sources],
         confidence=confidence,
+    )
+
+    tools_used = sorted({str(t.get("node")) for t in state.get("trace", [])})
+    await audit_service.log(
+        db,
+        organization_id=user.organization_id,
+        actor_id=user.id,
+        action="agent.query",
+        resource_type="chat_session",
+        resource_id=str(session_id),
+        metadata={"tools": tools_used, "needs_approval": bool(state.get("needs_approval"))},
     )
 
     return AgentResponse(

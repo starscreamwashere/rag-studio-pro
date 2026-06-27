@@ -8,6 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import CurrentUser, DbSession, require_permission
+from app.core import ratelimit
 from app.core.config import settings
 from app.core.permissions import RUN_EXPERIMENTS
 from app.integrations import llm
@@ -22,7 +23,7 @@ from app.schemas.studio import (
     StudioChunk,
     StudioTriple,
 )
-from app.services import document_service, evaluation_service
+from app.services import audit_service, document_service, evaluation_service
 from app.services import knowledge_base_service as kb_service
 
 router = APIRouter(prefix="/studio", tags=["studio"])
@@ -44,6 +45,7 @@ async def run_experiment(
             status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge base not found"
         )
 
+    await ratelimit.enforce(user)
     start = time.monotonic()
     mode = payload.retrieval_mode
     chunks_for_gen: list = []
@@ -127,6 +129,15 @@ async def run_experiment(
         cost=None,
         score=score,
         hallucination_score=None,
+    )
+    await audit_service.log(
+        db,
+        organization_id=user.organization_id,
+        actor_id=user.id,
+        action="experiment.run",
+        resource_type="knowledge_base",
+        resource_id=str(kb.id),
+        metadata={"mode": mode, "top_k": payload.top_k},
     )
 
     return ExperimentResponse(

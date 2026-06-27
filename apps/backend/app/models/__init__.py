@@ -4,6 +4,7 @@ Importing them here ensures they are registered on ``Base.metadata`` so
 Alembic autogenerate and ``create_all`` see every table.
 """
 
+from app.models.audit_log import AuditLog
 from app.models.chat_session import ChatSession
 from app.models.chunk import Chunk
 from app.models.document import Document
@@ -28,4 +29,5 @@ __all__ = [
     "ChatSession",
     "Message",
     "EvaluationRun",
+    "AuditLog",
 ]

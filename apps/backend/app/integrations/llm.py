@@ -6,11 +6,14 @@ active provider; each provider is a thin httpx call exposing the same
 in the same way.
 """
 
+import asyncio
 import json
+import time
 from collections.abc import AsyncIterator
 
 import httpx
 
+from app.core import metrics
 from app.core.config import settings
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -95,12 +98,50 @@ def is_configured() -> bool:
     return bool(getattr(settings, attr)) if attr else False
 
 
+async def _generate_one(provider_name: str, prompt: str, system: str | None) -> dict:
+    fn = _PROVIDERS.get(provider_name)
+    if fn is None:
+        raise LLMNotConfigured(f"Unknown LLM provider: {provider_name}")
+    started = time.monotonic()
+    try:
+        result = await fn(prompt, system)
+    except LLMNotConfigured:
+        metrics.llm_requests_total.labels(provider_name, "not_configured").inc()
+        raise
+    except LLMError:
+        metrics.llm_requests_total.labels(provider_name, "error").inc()
+        raise
+    finally:
+        metrics.llm_latency_seconds.labels(provider_name).observe(time.monotonic() - started)
+    usage = result.get("usage", {})
+    tokens = usage.get("total_tokens") or usage.get("totalTokenCount") or 0
+    metrics.llm_requests_total.labels(provider_name, "success").inc()
+    metrics.llm_tokens_total.labels(provider_name).inc(tokens)
+    return result
+
+
+def _provider_configured(name: str) -> bool:
+    attr = _KEYS.get(name)
+    return bool(attr and getattr(settings, attr))
+
+
 async def generate(prompt: str, system: str | None = None) -> dict:
-    """Generate with the configured provider. Returns {'text', 'usage'}."""
-    provider = _PROVIDERS.get(settings.llm_provider)
-    if provider is None:
-        raise LLMNotConfigured(f"Unknown LLM provider: {settings.llm_provider}")
-    return await provider(prompt, system)
+    """Generate with retry on transient failure, then optional provider fallback."""
+    primary = settings.llm_provider
+    last_exc: Exception | None = None
+    for attempt in range(settings.llm_max_retries + 1):
+        try:
+            return await _generate_one(primary, prompt, system)
+        except LLMNotConfigured:
+            raise
+        except LLMError as exc:
+            last_exc = exc
+            if attempt < settings.llm_max_retries:
+                await asyncio.sleep(min(0.5 * 2**attempt, 4.0))
+    fb = settings.llm_fallback_provider
+    if fb and fb != primary and _provider_configured(fb):
+        return await _generate_one(fb, prompt, system)
+    raise last_exc  # type: ignore[misc]
 
 
 async def _groq_stream(prompt: str, system: str | None) -> AsyncIterator[str]:

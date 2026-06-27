@@ -14,6 +14,7 @@ from app.models.knowledge_base import KnowledgeBase
 from app.models.user import User
 from app.rag import graph_store, vector_store
 from app.schemas.knowledge_base import KnowledgeBaseCreate, KnowledgeBaseRead
+from app.services import audit_service
 from app.services import knowledge_base_service as kb_service
 
 router = APIRouter(prefix="/knowledge-bases", tags=["knowledge-bases"])
@@ -53,6 +54,15 @@ async def create_knowledge_base(
         payload.embedding_model,
         payload.chunking_strategy,
     )
+    await audit_service.log(
+        db,
+        organization_id=user.organization_id,
+        actor_id=user.id,
+        action="knowledge_base.created",
+        resource_type="knowledge_base",
+        resource_id=str(kb.id),
+        metadata={"name": kb.name},
+    )
     return _to_read(kb, 0)
 
 
@@ -82,3 +92,11 @@ async def delete_knowledge_base(
     await run_in_threadpool(vector_store.delete_collection, vector_store.collection_name(kb_id))
     await run_in_threadpool(graph_store.delete_kb_graph, str(kb_id))
     await kb_service.delete(db, kb)
+    await audit_service.log(
+        db,
+        organization_id=user.organization_id,
+        actor_id=user.id,
+        action="knowledge_base.deleted",
+        resource_type="knowledge_base",
+        resource_id=str(kb_id),
+    )

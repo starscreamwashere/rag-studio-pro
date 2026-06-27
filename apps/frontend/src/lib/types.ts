@@ -55,6 +55,23 @@ export interface Document {
   uploaded_at: string;
 }
 
+export interface AuditLog {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  metadata_json: Record<string, unknown> | null;
+  timestamp: string;
+}
+
+export interface UsageSummary {
+  knowledge_bases: number;
+  documents: number;
+  experiments: number;
+  audit_events: number;
+}
+
 export type RetrievalMode = "vector" | "graph" | "hybrid";
 
 export interface StudioChunk {
