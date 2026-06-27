@@ -3,15 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
-import { MessageSquare } from "lucide-react";
+import { Globe, MessageSquare, Sparkles } from "lucide-react";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { MessageBubble } from "@/components/chat/message-bubble";
 import { NewChatDialog } from "@/components/chat/new-chat-dialog";
+import { TraceDrawer } from "@/components/chat/trace-drawer";
 import { Button } from "@/components/ui/button";
 import { streamChatMessage } from "@/lib/chat-stream";
-import { useChatSession } from "@/lib/hooks";
-import type { ChatCitation } from "@/lib/types";
+import { useAgentMessage, useChatSession } from "@/lib/hooks";
+import type { AgentResponse, ChatCitation } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface Draft {
   user: string;
@@ -26,32 +28,42 @@ export default function ChatPage() {
   const qc = useQueryClient();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [agentMode, setAgentMode] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [agentResult, setAgentResult] = useState<AgentResponse | null>(null);
+  const [lastQuery, setLastQuery] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: detail } = useChatSession(sessionId);
+  const agentMsg = useAgentMessage(sessionId);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [detail?.messages, draft]);
+  }, [detail?.messages, draft, agentResult]);
 
-  async function handleSend(content: string) {
+  async function send(content: string, allowWeb = false) {
     if (!sessionId || sending) return;
     setSending(true);
+    setLastQuery(content);
+    setAgentResult(null);
     setDraft({ user: content, assistant: "", citations: [], confidence: null, error: null });
     try {
-      const token = await getToken();
-      await streamChatMessage(token, sessionId, content, {
-        onMeta: (d) =>
-          setDraft((p) => (p ? { ...p, citations: d.citations, confidence: d.confidence } : p)),
-        onToken: (t) => setDraft((p) => (p ? { ...p, assistant: p.assistant + t } : p)),
-        onError: (dt) => setDraft((p) => (p ? { ...p, error: dt } : p)),
-      });
+      if (agentMode) {
+        const res = await agentMsg.mutateAsync({ content, allow_web_search: allowWeb });
+        setAgentResult(res);
+      } else {
+        const token = await getToken();
+        await streamChatMessage(token, sessionId, content, {
+          onMeta: (d) =>
+            setDraft((p) => (p ? { ...p, citations: d.citations, confidence: d.confidence } : p)),
+          onToken: (t) => setDraft((p) => (p ? { ...p, assistant: p.assistant + t } : p)),
+          onError: (dt) => setDraft((p) => (p ? { ...p, error: dt } : p)),
+        });
+      }
     } catch {
-      setDraft((p) => (p ? { ...p, error: "Connection lost." } : p));
+      setDraft((p) => (p ? { ...p, error: "Something went wrong." } : p));
     } finally {
-      // Refetch persisted history, then drop the in-flight draft (no flash).
       await qc.invalidateQueries({ queryKey: ["chat-session", sessionId] });
       qc.invalidateQueries({ queryKey: ["chat-sessions"] });
       setDraft(null);
@@ -63,7 +75,10 @@ export default function ChatPage() {
     <div className="flex h-full">
       <ChatSidebar
         selectedId={sessionId}
-        onSelect={setSessionId}
+        onSelect={(id) => {
+          setSessionId(id);
+          setAgentResult(null);
+        }}
         onNew={() => setNewOpen(true)}
         onDeleted={(id) => {
           if (id === sessionId) setSessionId(null);
@@ -77,7 +92,7 @@ export default function ChatPage() {
             <p className="text-lg font-medium">Enterprise knowledge assistant</p>
             <p className="max-w-sm text-sm text-muted-foreground">
               Start a conversation grounded in one of your knowledge bases. Answers cite their
-              sources.
+              sources; Agent mode reasons over tools.
             </p>
             <Button onClick={() => setNewOpen(true)}>Start a new chat</Button>
           </div>
@@ -99,7 +114,7 @@ export default function ChatPage() {
                     <MessageBubble role="user" content={draft.user} />
                     <MessageBubble
                       role="assistant"
-                      content={draft.assistant}
+                      content={draft.assistant || (agentMode ? "Reasoning over tools…" : "")}
                       citations={draft.citations}
                       confidence={draft.confidence}
                       streaming={!draft.error}
@@ -107,10 +122,41 @@ export default function ChatPage() {
                     {draft.error && <p className="text-sm text-destructive">{draft.error}</p>}
                   </>
                 )}
+                {agentResult && !draft && (
+                  <>
+                    <TraceDrawer trace={agentResult.trace} />
+                    {agentResult.needs_approval && (
+                      <div className="flex items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[#f5c27a] bg-[#fdf3e3] px-4 py-3 text-sm">
+                        <span className="flex items-center gap-2 text-[#9a6b1e]">
+                          <Globe className="h-4 w-4" />
+                          The agent wants to search the web to answer this.
+                        </span>
+                        <Button size="sm" onClick={() => send(lastQuery, true)}>
+                          Approve search
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
+
+            <div className="mx-auto w-full max-w-3xl px-4 pt-2">
+              <button
+                onClick={() => setAgentMode((v) => !v)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  agentMode
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-surface-2",
+                )}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Agent mode {agentMode ? "on" : "off"}
+              </button>
+            </div>
             <div className="mx-auto w-full max-w-3xl">
-              <ChatInput onSend={handleSend} disabled={sending} />
+              <ChatInput onSend={(t) => send(t)} disabled={sending} />
             </div>
           </>
         )}

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, useApi } from "@/lib/api";
 import type {
+  AgentResponse,
   ChatSession,
   ChatSessionDetail,
   Document,
@@ -246,6 +247,22 @@ export function useCreateChatSession() {
         body: JSON.stringify(input),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-sessions"] }),
+  });
+}
+
+export function useAgentMessage(sessionId: string | null) {
+  const { request } = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { content: string; allow_web_search: boolean }) =>
+      request<AgentResponse>(`/chat/sessions/${sessionId}/agent`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["chat-session", sessionId] });
+      qc.invalidateQueries({ queryKey: ["chat-sessions"] });
+    },
   });
 }
 
