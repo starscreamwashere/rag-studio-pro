@@ -62,6 +62,22 @@ def build_graph_prompt(query: str, triples: list[dict]) -> str:
     return f"Knowledge graph relationships:\n{facts}\n\nQuestion: {query}\n\nAnswer:"
 
 
+def build_hybrid_prompt(query: str, chunks: list, triples: list[dict]) -> str:
+    """Combine fused vector chunks with graph relationships into one context."""
+    context = "\n\n".join(f"[{i + 1}] {c.text}" for i, c in enumerate(chunks))
+    graph_block = ""
+    if triples:
+        facts = "\n".join(
+            f"- {t['source']} {t['relation'].replace('_', ' ').lower()} {t['target']}"
+            for t in triples
+        )
+        graph_block = f"\n\nKnowledge graph relationships:\n{facts}"
+    return (
+        f"Context:\n{context}{graph_block}\n\nQuestion: {query}\n\n"
+        "Answer (with inline [n] citations):"
+    )
+
+
 async def generate_answer(query: str, chunks: list[RetrievedChunk]) -> dict:
     """Return {'text', 'usage'}. Raises llm.LLMNotConfigured if no LLM key is set."""
     if not chunks:

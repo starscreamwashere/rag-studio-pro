@@ -6,15 +6,27 @@ import type {
   ChatSession,
   ChatSessionDetail,
   Document,
+  EvaluationRun,
+  ExperimentResponse,
   GraphEntity,
   GraphStats,
   GraphTriple,
   IngestionJob,
   KnowledgeBase,
   Organization,
+  RetrievalMode,
   User,
   Workspace,
 } from "@/lib/types";
+
+export interface ExperimentInput {
+  knowledge_base_id: string;
+  query: string;
+  retrieval_mode: RetrievalMode;
+  top_k: number;
+  fusion_strategy: "rrf" | "weighted";
+  alpha: number;
+}
 
 /** Current user. `data` is null when the user is authenticated but not onboarded. */
 export function useMe() {
@@ -98,12 +110,42 @@ export function useCreateKnowledgeBase() {
   const { request } = useApi();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { workspace_id: string; name: string; description?: string }) =>
+    mutationFn: (input: {
+      workspace_id: string;
+      name: string;
+      description?: string;
+      embedding_model?: string;
+      chunking_strategy?: string;
+    }) =>
       request<KnowledgeBase>("/knowledge-bases", {
         method: "POST",
         body: JSON.stringify(input),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["knowledge-bases"] }),
+  });
+}
+
+// ---- Studio (Phase 6) -------------------------------------------------------
+
+export function useRunExperiment() {
+  const { request } = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ExperimentInput) =>
+      request<ExperimentResponse>("/studio/experiments", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["experiment-runs"] }),
+  });
+}
+
+export function useExperimentRuns(workspaceId: string | null) {
+  const { request } = useApi();
+  return useQuery({
+    queryKey: ["experiment-runs", workspaceId],
+    queryFn: () => request<EvaluationRun[]>(`/studio/experiments?workspace_id=${workspaceId}`),
+    enabled: !!workspaceId,
   });
 }
 

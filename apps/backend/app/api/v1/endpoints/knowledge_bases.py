@@ -45,7 +45,13 @@ async def create_knowledge_base(
     if not await kb_service.workspace_in_org(db, payload.workspace_id, user.organization_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     kb = await kb_service.create(
-        db, payload.workspace_id, payload.name, payload.description, user.id
+        db,
+        payload.workspace_id,
+        payload.name,
+        payload.description,
+        user.id,
+        payload.embedding_model,
+        payload.chunking_strategy,
     )
     return _to_read(kb, 0)
 

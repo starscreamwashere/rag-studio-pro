@@ -57,7 +57,7 @@ def ingest_document(document_id: str, job_id: str) -> str:
             job.current_step = "chunking"
             job.progress_percent = 40
             db.commit()
-            texts = chunk_text(parsed.text)
+            texts = chunk_text(parsed.text, kb.chunking_strategy, kb.embedding_model)
             chunk_rows: list[tuple[Chunk, str]] = []
             for i, text in enumerate(texts):
                 chunk = Chunk(document_id=doc.id, chunk_index=i, token_count=count_tokens(text))
