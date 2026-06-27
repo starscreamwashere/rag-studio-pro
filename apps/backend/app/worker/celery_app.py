@@ -13,6 +13,7 @@ celery_app = Celery(
     "ragstudio",
     broker=settings.redis_url,
     backend=settings.redis_url,
+    include=["app.worker.tasks.ingestion"],
 )
 
 celery_app.conf.update(

@@ -23,10 +23,12 @@ export function useApi() {
   const request = useCallback(
     async <T>(path: string, init: RequestInit = {}): Promise<T> => {
       const token = await getToken();
+      // Let the browser set the multipart boundary for FormData uploads.
+      const isFormData = init.body instanceof FormData;
       const res = await fetch(`${API_V1}${path}`, {
         ...init,
         headers: {
-          "Content-Type": "application/json",
+          ...(isFormData ? {} : { "Content-Type": "application/json" }),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...init.headers,
         },
