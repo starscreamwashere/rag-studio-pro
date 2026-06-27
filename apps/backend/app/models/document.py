@@ -17,6 +17,7 @@ from app.db.base import Base
 from app.models.mixins import UUIDPrimaryKey
 
 if TYPE_CHECKING:
+    from app.models.chunk import Chunk
     from app.models.ingestion_job import IngestionJob
     from app.models.knowledge_base import KnowledgeBase
 
@@ -50,4 +51,8 @@ class Document(UUIDPrimaryKey, Base):
         back_populates="document",
         cascade="all, delete-orphan",
         order_by="IngestionJob.created_at",
+    )
+    chunks: Mapped[list[Chunk]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
     )

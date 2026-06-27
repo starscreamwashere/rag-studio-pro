@@ -64,6 +64,13 @@ async def get_for_org(
     return (await db.execute(stmt)).scalar_one_or_none()
 
 
+async def file_names_for(db: AsyncSession, document_ids: list[uuid.UUID]) -> dict[str, str]:
+    if not document_ids:
+        return {}
+    stmt = select(Document.id, Document.file_name).where(Document.id.in_(document_ids))
+    return {str(row[0]): row[1] for row in (await db.execute(stmt)).all()}
+
+
 async def latest_job(db: AsyncSession, document_id: uuid.UUID) -> IngestionJob | None:
     stmt = (
         select(IngestionJob)

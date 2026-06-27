@@ -12,6 +12,7 @@ from app.core.permissions import CREATE_KNOWLEDGE_BASE
 from app.integrations import storage
 from app.models.knowledge_base import KnowledgeBase
 from app.models.user import User
+from app.rag import vector_store
 from app.schemas.knowledge_base import KnowledgeBaseCreate, KnowledgeBaseRead
 from app.services import knowledge_base_service as kb_service
 
@@ -69,6 +70,8 @@ async def delete_knowledge_base(
     kb = await kb_service.get_for_org(db, kb_id, user.organization_id)
     if kb is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    # Remove the KB's stored objects before dropping the metadata (cascades docs/jobs).
+    # Remove stored objects + the vector collection before dropping the metadata
+    # (which cascades documents/jobs/chunks).
     await run_in_threadpool(storage.delete_prefix, settings.minio_documents_bucket, f"{kb_id}/")
+    await run_in_threadpool(vector_store.delete_collection, vector_store.collection_name(kb_id))
     await kb_service.delete(db, kb)

@@ -58,6 +58,18 @@ class Settings(BaseSettings):
     # Ingestion
     max_upload_mb: int = 50
 
+    # RAG — chunking, embeddings, retrieval (Phase 3)
+    chunk_size: int = 1000
+    chunk_overlap: int = 150
+    retrieval_top_k: int = 5
+    fastembed_cache_dir: str = "/app/.fastembed_cache"
+
+    # LLM generation — active provider + per-provider models
+    llm_provider: str = "gemini"  # gemini | groq (override via LLM_PROVIDER)
+    gemini_model: str = "gemini-2.0-flash"
+    gemini_embedding_model: str = "text-embedding-004"
+    groq_model: str = "llama-3.3-70b-versatile"
+
     # Providers (populated per phase)
     gemini_api_key: str = ""
     groq_api_key: str = ""
