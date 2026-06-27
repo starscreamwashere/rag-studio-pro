@@ -144,6 +144,20 @@ export interface ChatMessage {
   created_at: string;
 }
 
+export type AgentTraceStep = { node: string } & Record<string, unknown>;
+
+export interface AgentResponse {
+  message_id: string;
+  answer: string;
+  trace: AgentTraceStep[];
+  sources: ChatCitation[];
+  confidence: number | null;
+  needs_approval: boolean;
+  model: string;
+  llm_configured: boolean;
+  generation_error: string | null;
+}
+
 export interface ChatSession {
   id: string;
   knowledge_base_id: string | null;

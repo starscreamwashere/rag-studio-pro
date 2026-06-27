@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     graph_max_chunks: int = 40  # cap per-document extraction LLM calls
     graph_retrieval_hops: int = 3  # multi-hop traversal depth for graph retrieval
 
+    # Agent (Phase 7)
+    web_search_max_results: int = 5
+
     # LLM generation — active provider + per-provider models
     llm_provider: str = "gemini"  # gemini | groq (override via LLM_PROVIDER)
     gemini_model: str = "gemini-2.0-flash"
