@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     minio_endpoint: str = "http://minio:9000"
     minio_root_user: str = "ragstudio"
     minio_root_password: str = "ragstudio123"
+    minio_region: str = "us-east-1"
+    minio_documents_bucket: str = "documents"
+
+    # Ingestion
+    max_upload_mb: int = 50
 
     # Providers (populated per phase)
     gemini_api_key: str = ""

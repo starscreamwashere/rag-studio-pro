@@ -1,19 +1,21 @@
 "use client";
 
 import { PageHeader } from "@/components/app/page-header";
-import { useCurrentOrganization, useMe, useWorkspaces } from "@/lib/hooks";
-
-const STATS = [
-  { label: "Documents indexed", value: "0" },
-  { label: "Knowledge bases", value: "0" },
-  { label: "Queries today", value: "0" },
-  { label: "Avg. latency", value: "—" },
-];
+import { useCurrentOrganization, useKnowledgeBases, useMe, useWorkspaces } from "@/lib/hooks";
 
 export default function DashboardPage() {
   const { data: user } = useMe();
   const { data: org } = useCurrentOrganization();
   const { data: workspaces } = useWorkspaces();
+  const { data: kbs } = useKnowledgeBases();
+
+  const documentTotal = kbs?.reduce((sum, kb) => sum + kb.document_count, 0) ?? 0;
+  const stats = [
+    { label: "Documents indexed", value: String(documentTotal) },
+    { label: "Knowledge bases", value: String(kbs?.length ?? 0) },
+    { label: "Queries today", value: "0" },
+    { label: "Avg. latency", value: "—" },
+  ];
 
   return (
     <>
@@ -24,7 +26,7 @@ export default function DashboardPage() {
 
       <div className="flex flex-col gap-8 px-8 py-6">
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {STATS.map((s) => (
+          {stats.map((s) => (
             <div key={s.label} className="rounded-[var(--radius-card)] border bg-card p-5">
               <p className="text-sm text-muted-foreground">{s.label}</p>
               <p className="mt-2 text-3xl font-semibold tracking-tight">{s.value}</p>
