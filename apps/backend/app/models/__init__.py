@@ -4,6 +4,7 @@ Importing them here ensures they are registered on ``Base.metadata`` so
 Alembic autogenerate and ``create_all`` see every table.
 """
 
+from app.models.chunk import Chunk
 from app.models.document import Document
 from app.models.ingestion_job import IngestionJob
 from app.models.knowledge_base import KnowledgeBase
@@ -20,4 +21,5 @@ __all__ = [
     "KnowledgeBase",
     "Document",
     "IngestionJob",
+    "Chunk",
 ]
